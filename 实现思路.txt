@@ -1,0 +1,32 @@
+核心需求分析：
+ - 功能目标：
+	1. 数据读取：从Excel表格中获取原始配置数据
+	2. 数据校验：确保表格中数据的完整性&正确性
+	3. 格式转换：将Excel数据转为json/csv/二进制等Unity可用的格式
+	4. 代码生成：生成C#类
+	5. 目录管理：分类存储输出的数据&代码
+
+ - 设计需求：
+	1. 模块化：读取、校验、转换分模块实现
+	2. 跨平台：支持Windows/Mac
+	3. 可扩展：易于添加新表&新数据格式
+	4. 自动化：一键输出
+
+技术栈选择：
+ - Excel解析
+	1. Python：openpyxl或pandas
+	2. C#：NPOI库
+ - 输出格式支持
+	1. JSON：最通用且可读
+	2. CSV：简单且易于调试
+	3. 二进制：性能优秀 -> FlatBuffers/Protobuf
+ - Unity数据读取
+	1. JSON：TextAsset + Newtonsoft.Json
+	2. CSV：CsvHelper
+	3. 二进制：BinaryReader
+
+优化和扩展：
+	1. 多表关联
+	2. 热更新
+	3. 错误日志
+	4. 快捷GUI
