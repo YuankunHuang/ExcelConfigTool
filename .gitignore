@@ -1,4 +1,4 @@
 # 忽略 __pycache__ 目录及其内容
-__pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
