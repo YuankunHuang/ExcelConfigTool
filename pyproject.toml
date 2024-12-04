@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "excel-tool"
+name = "excel-config-tool"
 version = "0.1.0"
 description = "A tool for processing Excel config files"
 authors = ["Yuankun Huang <buptforeverbean@gmail.com>"]
@@ -9,7 +9,7 @@ readme = "README.md"
 python = "^3.13"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
-jinja2 = "^3.1.4"
+protobuf = "^5.29.0"
 
 
 [build-system]

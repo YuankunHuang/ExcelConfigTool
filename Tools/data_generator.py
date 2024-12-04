@@ -1,117 +1,178 @@
+import os
 import pandas as pd
-import struct
+import sys
+from datetime import datetime
 
-NULL_PLACEHOLDER = -999999999
-
-def write_to_binary(df, output_path):
-    with open(output_path, 'wb') as f:
-        # 写入表头信息
-        column_count = len(df.columns)
-        f.write(struct.pack('i', column_count))  # 写入列数
-        
-        for column in df.columns:
-            parts = column.split('|')
-            field_name = parts[0]
-            field_type = parts[1]
-            # 写入字段名
-            field_name_bytes = field_name.encode('utf-8')
-            f.write(struct.pack('i', len(field_name_bytes)))  # 字段名长度
-            f.write(field_name_bytes)  # 字段名内容
-            # 写入字段类型
-            field_type_bytes = field_type.encode('utf-8')
-            f.write(struct.pack('i', len(field_type_bytes)))  # 字段类型长度
-            f.write(field_type_bytes)  # 字段类型内容
-        
-        # 写入数据
-        row_count = len(df)
-        f.write(struct.pack('i', row_count))  # 写入行数
-        
-        for _, row in df.iterrows():
-            for column in df.columns:
-                field_name, field_type = column.split('|')
-                value = row[column]
-
-                # 如果值为空，写入特殊标记
-                if pd.isna(value):
-                    if field_type in ['string', 'DateTime']:
-                        # 写入字符串和日期时间类型的空值占位符
-                        f.write(struct.pack('i', NULL_PLACEHOLDER))
-                    elif field_type in ['int', 'long', 'float', 'bool']:
-                        # 写入其他类型的空值占位符
-                        f.write(struct.pack('i', NULL_PLACEHOLDER))  # 使用整型表示空值
-                    continue
-                
-                # 根据字段类型写入
-                if field_type == 'int':
-                    f.write(struct.pack('i', int(value)))
-                elif field_type == 'long':
-                    f.write(struct.pack('q', int(value)))  # 使用 'q' 写入 long 类型
-                elif field_type == 'float':
-                    f.write(struct.pack('f', float(value)))
-                elif field_type == 'string':
-                    value_bytes = value.encode('utf-8')
-                    f.write(struct.pack('i', len(value_bytes)))  # 写入字符串长度
-                    f.write(value_bytes)  # 写入字符串内容
-                elif field_type == 'bool':
-                    f.write(struct.pack('?', bool(value)))
-                elif field_type == 'DateTime':
-                    value_str = value.strftime('%Y-%m-%d %H:%M:%S')  # 转为字符串
-                    value_bytes = value_str.encode('utf-8')
-                    f.write(struct.pack('i', len(value_bytes)))  # 写入字符串长度
-                    f.write(value_bytes)
-
-def read_from_binary(input_path):
+def generate_proto_file(df, proto_output_path, table_name):
     """
-    从二进制文件读取为 DataFrame
+    单独生成 .proto 文件，不涉及 pb2.py 的动态加载
     """
-    with open(input_path, 'rb') as f:
-        # 读取表头信息
-        column_count = struct.unpack('i', f.read(4))[0]
-        columns = []
-        column_types = []
-        for _ in range(column_count):
-            # 读取字段名
-            field_name_length = struct.unpack('i', f.read(4))[0]
-            field_name = f.read(field_name_length).decode('utf-8')
-            # 读取字段类型
-            field_type_length = struct.unpack('i', f.read(4))[0]
-            field_type = f.read(field_type_length).decode('utf-8')
-            columns.append(field_name)
-            column_types.append(field_type)
-        
-        # 读取数据
-        row_count = struct.unpack('i', f.read(4))[0]
-        data = []
-        for _ in range(row_count):
-            row = []
-            for field_type in column_types:
-                if field_type == 'int':
-                    value = struct.unpack('i', f.read(4))[0]
-                    row.append(None if value == NULL_PLACEHOLDER else value)
-                elif field_type == 'long':
-                    value = struct.unpack('q', f.read(8))[0]
-                    row.append(None if value == NULL_PLACEHOLDER else value)
-                elif field_type == 'float':
-                    value = struct.unpack('f', f.read(4))[0]
-                    row.append(None if value == NULL_PLACEHOLDER else value)
-                elif field_type == 'string':
-                    string_length = struct.unpack('i', f.read(4))[0]
-                    if string_length == NULL_PLACEHOLDER:
-                        row.append(None)  # 空字符串处理
-                    else:
-                        row.append(f.read(string_length).decode('utf-8'))
-                elif field_type == 'bool':
-                    value = struct.unpack('i', f.read(4))[0]  # 假设用int表示空值
-                    row.append(None if value == NULL_PLACEHOLDER else bool(value))
-                elif field_type == 'DateTime':
-                    datetime_length = struct.unpack('i', f.read(4))[0]
-                    if datetime_length == NULL_PLACEHOLDER:
-                        row.append(None)  # 空日期时间处理
-                    else:
-                        datetime_str = f.read(datetime_length).decode('utf-8')
-                        row.append(datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S'))
+    proto_content = f"""
+syntax = "proto3";
 
-            data.append(row)
-        
-        # 构建 DataFrame
-        return pd.DataFrame(data, columns=columns)
+message {table_name}Row {{
+"""
+    for index, col in enumerate(df.columns):
+        parts = col.split('|')
+        field_name = parts[0]
+        field_type = parts[1]
+        proto_type = {
+            "int": "int32",
+            "long": "int64",
+            "float": "float",
+            "string": "string",
+            "bool": "bool",
+            "DateTime": "string"
+        }.get(field_type, "string")
+        proto_content += f"    {proto_type} {field_name} = {index + 1};\n"
+
+    proto_content += f"""
+}}
+
+message {table_name} {{
+    repeated {table_name}Row rows = 1;
+}}
+"""
+    with open(proto_output_path, 'w') as proto_file:
+        proto_file.write(proto_content)
+    print(f"Successfully wrote .proto file to {proto_output_path}")
+
+
+def generate_dat_file(df, table_name, dat_output_path):
+    """
+    依赖 pb2.py，使用动态加载的 Protobuf 模块生成 .dat 文件
+    """
+    import importlib
+
+    try:
+        table_proto_module = importlib.import_module(f"{table_name}_pb2")
+    except ModuleNotFoundError:
+        raise RuntimeError(f"\nGenerated Protobuf module {table_name}_pb2.py not found. Ensure protoc was run correctly.")
+
+    proto_data_class = getattr(table_proto_module, table_name)
+    proto_data = proto_data_class()
+
+    for _, row in df.iterrows():
+        proto_row = proto_data.rows.add()
+        for col in df.columns:
+            field_name = col.split('|')[0]
+            value = row[col]
+            if pd.isna(value):
+                continue
+            setattr(proto_row, field_name, value)
+
+    with open(dat_output_path, 'wb') as dat_file:
+        dat_file.write(proto_data.SerializeToString())
+    print(f"Successfully wrote .dat file to {dat_output_path}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def write_to_protobuf(df, proto_output_path, dat_output_path, table_name):
+    """
+    将 Excel 数据写入 .proto 文件和 Protobuf 的 .dat 文件
+    """
+    # 创建 Protobuf 定义
+    proto_content = f"""
+syntax = "proto3";
+
+message {table_name}Row {{
+"""
+    # 解析表头并处理字段
+    column_details = []
+    for index, col in enumerate(df.columns):
+        parts = col.split('|')
+        field_name = parts[0]  # 字段名
+        field_type = parts[1]  # 字段类型
+        allow_null = len(parts) > 2 and parts[2].lower() == "null"  # 是否允许空值
+
+        # 映射 Protobuf 类型
+        proto_type = {
+            "int": "int32",
+            "long": "int64",
+            "float": "float",
+            "string": "string",
+            "bool": "bool",
+            "DateTime": "string"  # DateTime 转换为字符串存储
+        }.get(field_type, "string")
+
+        # 记录字段信息
+        column_details.append({
+            "name": field_name,
+            "type": field_type,
+            "proto_type": proto_type,
+            "allow_null": allow_null
+        })
+        proto_content += f"    {proto_type} {field_name} = {index + 1};\n"
+
+    proto_content += f"""
+}}
+
+message {table_name} {{
+    repeated {table_name}Row rows = 1;
+}}
+"""
+
+    # 写入 .proto 文件
+    with open(proto_output_path, 'w') as proto_file:
+        proto_file.write(proto_content)
+
+    # 动态加载 Protobuf 模块
+    try:
+        table_proto_module = importlib.import_module(f"{table_name}_pb2")
+    except ModuleNotFoundError:
+        raise RuntimeError(f"Generated Protobuf module {table_name}_pb2.py not found. Ensure protoc was run correctly.")
+
+    # 获取根数据结构类
+    try:
+        proto_data_class = getattr(table_proto_module, table_name)
+    except AttributeError:
+        raise RuntimeError(f"{table_name} class not found in {table_name}_pb2.py")
+
+    proto_data = proto_data_class()
+
+    # 填充数据
+    for _, row in df.iterrows():
+        proto_row = proto_data.rows.add()  # 添加一行
+        for col, details in zip(df.columns, column_details):
+            field_name = details["name"]
+            field_type = details["type"]
+            allow_null = details["allow_null"]
+
+            value = row[col]
+
+            # 处理空值
+            if pd.isna(value):
+                if not allow_null:
+                    raise ValueError(f"Column '{field_name}' does not allow null values!")
+                continue
+
+            # 转换并赋值字段
+            if field_type == "int":
+                setattr(proto_row, field_name, int(value))
+            elif field_type == "long":
+                setattr(proto_row, field_name, int(value))
+            elif field_type == "float":
+                setattr(proto_row, field_name, float(value))
+            elif field_type == "string":
+                setattr(proto_row, field_name, str(value))
+            elif field_type == "bool":
+                setattr(proto_row, field_name, bool(value))
+            elif field_type == "DateTime":
+                if isinstance(value, datetime):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')  # 格式化为字符串
+                setattr(proto_row, field_name, value)
+
+    # 序列化 Protobuf 数据为二进制文件
+    with open(dat_output_path, 'wb') as dat_file:
+        dat_file.write(proto_data.SerializeToString())
