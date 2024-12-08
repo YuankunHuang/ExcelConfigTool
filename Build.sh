@@ -1,11 +1,19 @@
 #!/bin/bash
 
-echo "Running configuration tool..."
+excel_path="Excel"
+proto_output_path="Output/proto"
+dat_output_path="Output/dat"
+python_output_path="Output/proto_py"
+csharp_output_path="Output/proto_cs"
 
-poetry run python Tools/main.py Excel Output
+echo ""
+echo "Start building..."
+echo ""
 
-echo:
-echo "Configuration tool running ends."
-echo:
+poetry run python Tools/main.py "$excel_path" "$proto_output_path" "$dat_output_path" "$python_output_path" "$csharp_output_path"
 
-read -p "Press any key to continue..."
+echo ""
+echo "Building ends."
+echo ""
+
+read -p "Press [Enter] to continue..."
