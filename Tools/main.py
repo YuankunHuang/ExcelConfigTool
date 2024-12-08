@@ -1,4 +1,5 @@
 import os
+import shutil
 import platform
 import sys
 import excel_reader
@@ -35,6 +36,7 @@ def process_excel_directory(input_dir, output_dir):
     for file_name in os.listdir(input_dir):
         if file_name.endswith('.xlsx'):
             file_path = os.path.join(input_dir, file_name)
+            print("\n" + "=" * 40)
             print(f"Processing: {file_name}")
 
             # 读取 Excel 文件
@@ -50,7 +52,7 @@ def process_excel_directory(input_dir, output_dir):
             # 生成 .proto 文件
             print()
             data_generator.generate_proto_file(df, proto_file, table_name)  # 单独生成 .proto 文件
-            print(f".proto file generated for {file_name}")
+            #print(f".proto file generated for {file_name}")
 
             # 使用 protoc 生成 Python 和 C# 文件
             print()
@@ -61,7 +63,9 @@ def process_excel_directory(input_dir, output_dir):
             # 生成 .dat 文件
             print()
             data_generator.generate_dat_file(df, table_name, dat_file)
-            print(f".dat file generated for {file_name}")
+            #print(f".dat file generated for {file_name}")
+
+            print("=" * 40)
 
 
 def generate_python_code(proto_file, output_dir):
@@ -70,7 +74,7 @@ def generate_python_code(proto_file, output_dir):
     """
     protoc_path = get_protoc_path()
     command = f'{protoc_path} --python_out="{output_dir}" --proto_path="{os.path.dirname(proto_file)}" "{proto_file}"'
-    print(f"Executing: {command}")
+    #print(f"Executing: {command}")
 
     result = os.system(command)
     if result != 0:
@@ -83,7 +87,7 @@ def generate_csharp_code(proto_file, output_dir):
     """
     protoc_path = get_protoc_path()
     command = f'{protoc_path} --csharp_out="{output_dir}" --proto_path="{os.path.dirname(proto_file)}" "{proto_file}"'
-    print(f"Executing: {command}")
+    #print(f"Executing: {command}")
 
     result = os.system(command)
     if result != 0:
@@ -91,12 +95,14 @@ def generate_csharp_code(proto_file, output_dir):
 
 
 if __name__ == "__main__":    
-    input_dir = os.path.abspath("Excel")  # Excel 文件所在目录
-    output_dir = os.path.abspath("Output")  # 输出的 .proto, .dat, .cs 文件目录
+
+    input_dir = os.path.abspath(sys.argv[1])  # Excel 文件所在目录
+    output_dir = os.path.abspath(sys.argv[2])  # 输出的 .proto, .dat, .cs 文件目录
 
     # 确保输出目录存在
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)  # 删除整个目录
+    os.makedirs(output_dir)  # 重新创建目录
 
     # 动态添加路径到 sys.path
     if output_dir not in sys.path:

@@ -1,5 +1,6 @@
 import pandas as pd
-from datetime import datetime
+from google.protobuf.timestamp_pb2 import Timestamp
+from datetime import datetime, timezone
 
 def read_excel(file_path: str):
     # 读取 Excel 文件
@@ -28,7 +29,7 @@ def validate_header(columns):
     """
     seen_fields = set()  # 用于检查字段重复
     allow_null_fields = {}  # 记录允许空值的字段
-    supported_types = {'int', 'long', 'float', 'string', 'bool', 'DateTime'}  # 支持的类型
+    supported_types = {'int', 'long', 'float', 'string', 'bool', 'time'}  # 支持的类型
 
     for index, column in enumerate(columns):
         parts = column.split('|')
@@ -39,6 +40,11 @@ def validate_header(columns):
 
         field_name, field_type = parts[0], parts[1]
         allow_null = False
+
+        if len(field_name) < 1:
+            raise ValueError(f"Empty field name in column {index}!")
+        if len(field_type) < 1:
+            raise ValueError(f"Empty field type in column {index}!")
 
         # 检查是否有 null 标识
         if len(parts) == 3:
@@ -74,10 +80,13 @@ def validate_data(df, allow_null_fields):
 
         for index, value in column_data.items():
             if pd.isna(value):  # 检测是否为空值
-                if allow_null:
-                    continue  # 允许空值则跳过验证
+                if field_type == 'bool':
+                    value = 0
                 else:
-                    raise ValueError(f"Column '{field_name}' at row {index + 2} contains null value but null is not allowed.")
+                    if allow_null:
+                        continue  # 允许空值则跳过验证
+                    else:
+                        raise ValueError(f"Column '{field_name}' at row {index + 2} contains null value but null is not allowed.")
             
             # 根据字段类型进行验证
             if field_type == 'int' and not (isinstance(value, int) and -2_147_483_648 <= value <= 2_147_483_647):
@@ -90,7 +99,7 @@ def validate_data(df, allow_null_fields):
                 raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected str, got {value}")
             elif field_type == 'bool' and not is_valid_bool(value):
                 raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected bool, got {value}")
-            elif field_type == 'DateTime' and not is_valid_datetime(value):
+            elif field_type == 'time' and not is_valid_datetime(value):
                 raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected DateTime, got {value}")
 
 
@@ -101,18 +110,33 @@ def is_valid_bool(value):
     2. 数值类型：0, 1
     3. 字符串类型："true", "false"（不区分大小写）
     """
+
     if isinstance(value, bool):
         return True
-    if isinstance(value, int) and value in [0, 1]:
+    if isinstance(value, (int, float)) and int(value) in [0, 1]:
         return True
     if isinstance(value, str) and value.lower() in ['true', 'false']:
         return True
     return False
 
-def is_valid_datetime(value, fmt='%Y-%m-%d %H:%M:%S'):
+
+def is_valid_datetime(value):
     try:
         if isinstance(value, str):
-            datetime.strptime(value, fmt)
-        return True
+            components = value.split("-")
+            if len(components) != 6:
+                return False
+            
+            # 提取时间组件
+            year, month, day, hour, minute, second = map(int, components)
+            
+            # 构造 UTC 时间对象
+            dt = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
+            
+            # 转换为 Protobuf Timestamp
+            timestamp = Timestamp()
+            timestamp.FromDatetime(dt)
+            return True
+
     except ValueError:
         return False
