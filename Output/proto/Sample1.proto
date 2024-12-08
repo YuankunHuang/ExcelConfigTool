@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 message Sample1Row {
     int32 id = 1;
     string name = 2;
-    int32 level = 3;
+    int64 level = 3;
     bool isActive = 4;
     string testNull = 5;
     google.protobuf.Timestamp startTime = 6;

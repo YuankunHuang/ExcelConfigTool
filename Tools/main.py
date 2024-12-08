@@ -29,7 +29,7 @@ def generate_protobuf_code(proto_output_path, output_dir):
         raise RuntimeError(f"Protoc execution failed for file: {proto_output_path}")
 
 
-def process_excel_directory(input_dir, output_dir):
+def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, csharp_out_dir):
     """
     遍历 Excel 目录，对每个 Excel 文件生成 .proto 和相关文件，避免重复运算
     """
@@ -44,10 +44,8 @@ def process_excel_directory(input_dir, output_dir):
 
             # 生成对应的文件名
             table_name = os.path.splitext(file_name)[0]
-            proto_file = os.path.join(output_dir, f"{table_name}.proto")
-            dat_file = os.path.join(output_dir, f"{table_name}.dat")
-            python_out_dir = output_dir
-            csharp_out_dir = output_dir
+            proto_file = os.path.join(proto_dir, f"{table_name}.proto")
+            dat_file = os.path.join(dat_dir, f"{table_name}.dat")
 
             # 生成 .proto 文件
             print()
@@ -97,17 +95,21 @@ def generate_csharp_code(proto_file, output_dir):
 if __name__ == "__main__":    
 
     input_dir = os.path.abspath(sys.argv[1])  # Excel 文件所在目录
-    output_dir = os.path.abspath(sys.argv[2])  # 输出的 .proto, .dat, .cs 文件目录
+    proto_dir = os.path.abspath(sys.argv[2])  # 输出的 .proto 文件目录
+    dat_dir = os.path.abspath(sys.argv[3])  # 输出的 .dat 文件目录
+    python_out_dir = os.path.abspath(sys.argv[4])  # 输出的 .py 文件目录
+    csharp_out_dir = os.path.abspath(sys.argv[5])  # 输出的 .cs 文件目录
 
     # 确保输出目录存在
-    if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)  # 删除整个目录
-    os.makedirs(output_dir)  # 重新创建目录
+    for dir in [proto_dir, dat_dir, python_out_dir, csharp_out_dir]:
+        if os.path.exists(dir):
+            shutil.rmtree(dir)  # 删除整个目录
+        os.makedirs(dir)  # 重新创建目录
 
-    # 动态添加路径到 sys.path
-    if output_dir not in sys.path:
-        sys.path.append(output_dir)
-        print(f"\nAdded {output_dir} to sys.path")
+    # 动态添加新模块路径到 sys.path
+    if python_out_dir not in sys.path:
+        sys.path.append(python_out_dir)
+        print(f"\nAdded {python_out_dir} to sys.path")
 
     # 处理 Excel 目录
-    process_excel_directory(input_dir, output_dir)
+    process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, csharp_out_dir)

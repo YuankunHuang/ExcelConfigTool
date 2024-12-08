@@ -24,7 +24,7 @@ public static partial class Sample1Reflection {
         string.Concat(
           "Cg1TYW1wbGUxLnByb3RvGh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnBy",
           "b3RvIogBCgpTYW1wbGUxUm93EgoKAmlkGAEgASgFEgwKBG5hbWUYAiABKAkS",
-          "DQoFbGV2ZWwYAyABKAUSEAoIaXNBY3RpdmUYBCABKAgSEAoIdGVzdE51bGwY",
+          "DQoFbGV2ZWwYAyABKAMSEAoIaXNBY3RpdmUYBCABKAgSEAoIdGVzdE51bGwY",
           "BSABKAkSLQoJc3RhcnRUaW1lGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRp",
           "bWVzdGFtcCIkCgdTYW1wbGUxEhkKBHJvd3MYASADKAsyCy5TYW1wbGUxUm93",
           "YgZwcm90bzM="));
@@ -115,10 +115,10 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
 
   /// <summary>Field number for the "level" field.</summary>
   public const int LevelFieldNumber = 3;
-  private int level_;
+  private long level_;
   [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
   [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-  public int Level {
+  public long Level {
     get { return level_; }
     set {
       level_ = value;
@@ -191,7 +191,7 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
     int hash = 1;
     if (Id != 0) hash ^= Id.GetHashCode();
     if (Name.Length != 0) hash ^= Name.GetHashCode();
-    if (Level != 0) hash ^= Level.GetHashCode();
+    if (Level != 0L) hash ^= Level.GetHashCode();
     if (IsActive != false) hash ^= IsActive.GetHashCode();
     if (TestNull.Length != 0) hash ^= TestNull.GetHashCode();
     if (startTime_ != null) hash ^= StartTime.GetHashCode();
@@ -221,9 +221,9 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
       output.WriteRawTag(18);
       output.WriteString(Name);
     }
-    if (Level != 0) {
+    if (Level != 0L) {
       output.WriteRawTag(24);
-      output.WriteInt32(Level);
+      output.WriteInt64(Level);
     }
     if (IsActive != false) {
       output.WriteRawTag(32);
@@ -255,9 +255,9 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
       output.WriteRawTag(18);
       output.WriteString(Name);
     }
-    if (Level != 0) {
+    if (Level != 0L) {
       output.WriteRawTag(24);
-      output.WriteInt32(Level);
+      output.WriteInt64(Level);
     }
     if (IsActive != false) {
       output.WriteRawTag(32);
@@ -287,8 +287,8 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
     if (Name.Length != 0) {
       size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
     }
-    if (Level != 0) {
-      size += 1 + pb::CodedOutputStream.ComputeInt32Size(Level);
+    if (Level != 0L) {
+      size += 1 + pb::CodedOutputStream.ComputeInt64Size(Level);
     }
     if (IsActive != false) {
       size += 1 + 1;
@@ -317,7 +317,7 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
     if (other.Name.Length != 0) {
       Name = other.Name;
     }
-    if (other.Level != 0) {
+    if (other.Level != 0L) {
       Level = other.Level;
     }
     if (other.IsActive != false) {
@@ -360,7 +360,7 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
           break;
         }
         case 24: {
-          Level = input.ReadInt32();
+          Level = input.ReadInt64();
           break;
         }
         case 32: {
@@ -406,7 +406,7 @@ public sealed partial class Sample1Row : pb::IMessage<Sample1Row>
           break;
         }
         case 24: {
-          Level = input.ReadInt32();
+          Level = input.ReadInt64();
           break;
         }
         case 32: {

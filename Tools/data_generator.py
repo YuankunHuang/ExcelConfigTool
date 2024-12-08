@@ -80,8 +80,6 @@ def generate_dat_file(df, table_name, dat_output_path):
 
 
 def parse_value(value, field_type: str):
-    print(f"parse_value - value: {value} | field_type: {field_type}")
-
     if value is None or pd.isna(value):  # 设置默认空值
         if field_type == 'bool':
             return False
