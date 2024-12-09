@@ -1,4 +1,10 @@
-# 忽略 __pycache__ 目录及其内容
-**/__pycache__/
+# 忽略 Python 虚拟环境
+.env
+venv/
+# 忽略本地缓存文件
 *.pyc
 *.pyo
+**/__pycache__/
+# 忽略 IDE 配置文件
+.vscode/
+.idea/

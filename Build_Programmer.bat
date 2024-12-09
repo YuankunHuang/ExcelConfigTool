@@ -7,6 +7,8 @@ echo:
 echo Building starts
 echo:
 
+call Build.bat
+
 poetry run python Tools\generate_config_cs.py %data_input_path% %config_output_path%
 
 echo:
