@@ -1,6 +1,16 @@
 import pandas as pd
+import util
 from google.protobuf.timestamp_pb2 import Timestamp
 from datetime import datetime, timezone
+
+PROTO_TYPES = {
+    "int": "int32",
+    "long": "int64",
+    "float": "float",
+    "string": "string",
+    "bool": "bool",
+    "time": "google.protobuf.Timestamp"
+}
 
 def generate_proto_file(df, proto_output_path, table_name):
     """
@@ -14,17 +24,11 @@ import "google/protobuf/timestamp.proto";
 message {table_name}Row {{
 """
     for index, col in enumerate(df.columns):
-        parts = col.split('|')
-        field_name = parts[0]
-        field_type = parts[1]
-        proto_type = {
-            "int": "int32",
-            "long": "int64",
-            "float": "float",
-            "string": "string",
-            "bool": "bool",
-            "time": "google.protobuf.Timestamp"
-        }.get(field_type)
+        components = util.get_field_components(col)
+
+        field_name = components.get("field_name")
+        field_type = components.get("field_type")
+        proto_type = PROTO_TYPES.get(field_type)
         proto_content += f"    {proto_type} {field_name} = {index + 1};\n"
 
     proto_content += f"""

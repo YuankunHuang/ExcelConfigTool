@@ -1,38 +1,43 @@
 import os
 import shutil
-import platform
 import sys
 import excel_reader
 import data_generator
+import validator
+import code_generator
 
-def get_protoc_path():
+def get_all_excel_data(input_dir):
     """
-    获取本地 Protoc 可执行文件路径，根据操作系统选择正确的文件名。
+    获取目录下所有 Excel 文件的数据，以字典形式返回
+    :param input_dir: Excel 文件所在目录
+    :return: 字典 {表名: {列名: 列数据列表}}
     """
-    base_path = os.path.abspath("Tools/protoc/bin/")
-    executable_name = "protoc.exe" if platform.system() == "Windows" else "protoc"
-    return os.path.join(base_path, executable_name)
+    data_dict = {}
 
+    for file_name in os.listdir(input_dir):
+        if file_name.endswith('.xlsx'):  # 只处理 Excel 文件
+            file_path = os.path.join(input_dir, file_name)
+            table_name = os.path.splitext(file_name)[0]  # 文件名作为表名
 
-def generate_protobuf_code(proto_output_path, output_dir):
-    """
-    使用 Protoc 编译器生成 C# 解析代码
-    :param proto_output_path: .proto 文件路径
-    :param output_dir: 输出目录
-    """
-    protoc_path = get_protoc_path()
-    command = f'"{protoc_path}" --csharp_out="{output_dir}" "{proto_output_path}"'
-    print(f"Executing: {command}")
+            try:
+                # 读取整个 Excel 表
+                df = excel_reader.read_excel(file_path)
 
-    result = os.system(command)
-    if result != 0:
-        raise RuntimeError(f"Protoc execution failed for file: {proto_output_path}")
+                # 将 DataFrame 转换为字典：{列名: 列数据列表}
+                data_dict[table_name] = df
+            except Exception as e:
+                print(f"Error reading {file_name}: {e}")
+
+    return data_dict
 
 
 def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, csharp_out_dir):
     """
     遍历 Excel 目录，对每个 Excel 文件生成 .proto 和相关文件，避免重复运算
     """
+
+    all_excel_data = get_all_excel_data(input_dir)
+
     for file_name in os.listdir(input_dir):
         if file_name.endswith('.xlsx'):
             file_path = os.path.join(input_dir, file_name)
@@ -41,6 +46,7 @@ def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, cshar
 
             # 读取 Excel 文件
             df = excel_reader.read_excel(file_path)
+            validator.validate_excel(df, all_excel_data)
 
             # 生成对应的文件名
             table_name = os.path.splitext(file_name)[0]
@@ -54,8 +60,8 @@ def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, cshar
 
             # 使用 protoc 生成 Python 和 C# 文件
             print()
-            generate_python_code(proto_file, python_out_dir)
-            generate_csharp_code(proto_file, csharp_out_dir)
+            code_generator.generate_python_code(proto_file, python_out_dir)
+            code_generator.generate_csharp_code(proto_file, csharp_out_dir)
             print(f"Python and C# code generated for {file_name}")
 
             # 生成 .dat 文件
@@ -64,32 +70,6 @@ def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, cshar
             #print(f".dat file generated for {file_name}")
 
             print("=" * 40)
-
-
-def generate_python_code(proto_file, output_dir):
-    """
-    使用 protoc 生成 Python 文件
-    """
-    protoc_path = get_protoc_path()
-    command = f'{protoc_path} --python_out="{output_dir}" --proto_path="{os.path.dirname(proto_file)}" "{proto_file}"'
-    #print(f"Executing: {command}")
-
-    result = os.system(command)
-    if result != 0:
-        raise RuntimeError(f"Failed to generate Python code for {proto_file}")
-    
-    
-def generate_csharp_code(proto_file, output_dir):
-    """
-    使用 protoc 生成 C# 文件
-    """
-    protoc_path = get_protoc_path()
-    command = f'{protoc_path} --csharp_out="{output_dir}" --proto_path="{os.path.dirname(proto_file)}" "{proto_file}"'
-    #print(f"Executing: {command}")
-
-    result = os.system(command)
-    if result != 0:
-        raise RuntimeError(f"Failed to generate Python code for {proto_file}")
 
 
 if __name__ == "__main__":    
