@@ -16,21 +16,35 @@ def generate_proto_file(df, proto_output_path, table_name):
     """
     单独生成 .proto 文件，不涉及 pb2.py 的动态加载
     """
-    proto_content = f"""
-syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
+    include_time = False
+    proto_fields = ""
 
-message {table_name}Row {{
-"""
     for index, col in enumerate(df.columns):
         components = util.get_field_components(col)
 
         field_name = components.get("field_name")
         field_type = components.get("field_type")
         proto_type = PROTO_TYPES.get(field_type)
-        proto_content += f"    {proto_type} {field_name} = {index + 1};\n"
+        proto_fields += f"    {proto_type} {field_name} = {index + 1};\n"
 
+        if field_type == "time":
+            include_time = True
+
+    proto_content = f"""
+syntax = "proto3";
+"""
+
+    if include_time:
+        proto_content += f"""
+import "google/protobuf/timestamp.proto";
+        """
+
+    proto_content += f"""
+message {table_name}Row {{
+"""
+
+    proto_content += proto_fields
     proto_content += f"""
 }}
 

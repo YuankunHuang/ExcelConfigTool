@@ -26,7 +26,7 @@ def process_single_excel(file_path, proto_dir, dat_dir, python_out_dir, csharp_o
     """
     try:
         table_name = os.path.splitext(os.path.basename(file_path))[0]
-        print(f"[Start processing table: {table_name}]")
+        #print(f"[Start processing table: {table_name}]")
 
         # 读取 Excel 文件
         df = excel_reader.read_excel(file_path)
