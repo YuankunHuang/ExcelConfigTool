@@ -7,27 +7,15 @@ import validator
 import code_generator
 
 def get_all_excel_data(input_dir):
-    """
-    获取目录下所有 Excel 文件的数据，以字典形式返回
-    :param input_dir: Excel 文件所在目录
-    :return: 字典 {表名: {列名: 列数据列表}}
-    """
     data_dict = {}
-
-    for file_name in os.listdir(input_dir):
-        if file_name.endswith('.xlsx'):  # 只处理 Excel 文件
-            file_path = os.path.join(input_dir, file_name)
-            table_name = os.path.splitext(file_name)[0]  # 文件名作为表名
-
-            try:
-                # 读取整个 Excel 表
-                df = excel_reader.read_excel(file_path)
-
-                # 将 DataFrame 转换为字典：{列名: 列数据列表}
-                data_dict[table_name] = df
-            except Exception as e:
-                print(f"Error reading {file_name}: {e}")
-
+    excel_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith('.xlsx')]
+    for file_path in excel_files:
+        table_name = os.path.splitext(os.path.basename(file_path))[0]
+        try:
+            df = excel_reader.read_excel(file_path)
+            data_dict[table_name] = df
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
     return data_dict
 
 

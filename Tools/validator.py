@@ -51,22 +51,72 @@ def validate_header(columns, all_excel_data: dict):
 
             for field_ref, table_name in constraints.items():
 
-                # 遍历all_excel_data，确认目标table中是否存在列field_ref
-                is_passed = False
+                """
+                讨论 constraint 的不同形式
+                """
 
-                if table_name not in all_excel_data:
-                    raise ValueError(f"Invalid constraint defined in: {column}. Table '{table_name}' is not found.")
+                if field_ref == "Range": # 数值范围
+                    if field_type != "int" and field_type != "long" and field_type != "float":
+                        raise ValueError(f"Invalid constraint defined in: {column}. 'Range' can only be applied to numbers.")
+                    else:
+                        range_components = table_name.split(',')
+                        if len(range_components) != 2:
+                            raise ValueError(f"Invalid 'Range' definition in: {column}.")
+                        
+                        range_min = range_components[0].strip()
+                        range_max = range_components[1].strip()
 
-                df = pd.DataFrame(all_excel_data.get(table_name))
-                if df is not None and not df.empty:
-                    for column_ref in df.columns.tolist():
-                        components_ref = util.get_field_components(column_ref)
-                        if components_ref.get("field_name") == field_ref:
-                            is_passed = True
-                            break
+                        if field_type == "int" or field_type == "long":
+                            try:
+                                range_min = int(range_min)
+                            except Exception as e:
+                                raise ValueError(f"Invalid 'Range' min definition in: {column}. Exception: {e}")
 
-                if not is_passed:
-                    raise ValueError(f"Invalid constraint defined in: {column}. {field_ref} not found in {table_name}")
+                            if range_max != "!":
+                                try:
+                                    range_max = int(range_max)
+                                except Exception as e:
+                                    raise ValueError(f"Invalid 'Range' min definition in: {column}. Exception: {e}")
+
+                                if range_min >= range_max:
+                                    raise ValueError(f"Invalid 'Range' definition in: {column}.")
+                            
+                        elif field_type == "float":
+                            try:
+                                range_min = float(range_min)
+                            except Exception as e:
+                                raise ValueError(f"Invalid 'Range' min definition in: {column}. Exception: {e}")
+
+                            if range_max != "!":
+                                try:
+                                    range_max = float(range_max)
+                                except Exception as e:
+                                    raise ValueError(f"Invalid 'Range' min definition in: {column}. Exception: {e}")
+
+                                if range_min >= range_max:
+                                    raise ValueError(f"Invalid 'Range' definition in: {column}.")
+                                
+                        else:
+                            raise ValueError(f"Invalid field_type: {field_type}")
+                            
+                
+                else: # 字段链接
+                    # 遍历all_excel_data，确认目标table中是否存在列field_ref
+                    is_passed = False
+
+                    if table_name not in all_excel_data:
+                        raise ValueError(f"Invalid constraint defined in: {column}. Table '{table_name}' is not found.")
+
+                    df = pd.DataFrame(all_excel_data.get(table_name))
+                    if df is not None and not df.empty:
+                        for column_ref in df.columns.tolist():
+                            components_ref = util.get_field_components(column_ref)
+                            if components_ref.get("field_name") == field_ref:
+                                is_passed = True
+                                break
+
+                    if not is_passed:
+                        raise ValueError(f"Invalid constraint defined in: {column}. {field_ref} not found in {table_name}")
 
         # 检查空标记
         if nullable_flag != None and nullable_flag.lower() != "null":
@@ -98,51 +148,76 @@ def validate_data(df: pd.DataFrame, all_excel_data):
 
         column_data = df[column]
 
-        for index, value in column_data.items():
-            if pd.isna(value):  # 检测是否为空值
-                if field_type == 'bool': # 列举正常情况下（无nullflag）可以为空的情况
-                    value = False
-                else:
-                    if allow_null:
-                        continue  # 允许空值则跳过验证
-                    else:
-                        raise ValueError(f"Column '{field_name}' at row {index + 2} contains null value but null is not allowed.")
-            
-            # 根据字段类型进行验证
-            if field_type == 'int' and not (isinstance(value, int) and -2_147_483_648 <= value <= 2_147_483_647):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected int, got {value}")
-            elif field_type == 'long' and not (isinstance(value, int) and -9_223_372_036_854_775_808 <= value <= 9_223_372_036_854_775_807):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected long, got {value}")
-            elif field_type == 'float' and not isinstance(value, (int, float)):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected float, got {value}")
-            elif field_type == 'string' and not isinstance(value, str):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected str, got {value}")
-            elif field_type == 'bool' and not is_valid_bool(value):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected bool, got {value}")
-            elif field_type == 'time' and not is_valid_time(value):
-                raise ValueError(f"Invalid value in column '{field_name}' at row {index + 2}: expected DateTime, got {value}")
-            
-            # 若有constraint，验证constraint：当前值是否在目标table_name的columns中有配置
-            if constraints and len(constraints) > 0:
-                meet_constraint = True
-                for field_ref, table_name in constraints.items(): # 遍历所有constraint
-                    meet_sub_constraint = False
+        # 空值验证
+        if not allow_null:
+            if column_data.isnull().any():
+                raise ValueError(f"Column '{field_name}' contains null values but null is not allowed.")
 
-                    df_ref = all_excel_data[table_name]
-                    for col_ref in df_ref.columns.tolist():
-                        components_ref = util.get_field_components(col_ref)
-                        field_name_ref = components_ref.get("field_name")
-                        if field_name_ref == field_ref:
-                            for value_ref in df_ref[col_ref]: # 基于constraint，遍历特定表的特定字段下的所有值，验证
-                                if value_ref == value:
-                                    meet_sub_constraint = True
-                                    break
-                            break
+        # 类型验证（使用矢量化操作）
+        if field_type == 'int':
+            if not pd.api.types.is_integer_dtype(column_data):
+                raise ValueError(f"Column '{field_name}' contains non-integer values.")
+        elif field_type == 'float':
+            if not pd.api.types.is_float_dtype(column_data):
+                raise ValueError(f"Column '{field_name}' contains non-float values.")
+        elif field_type == 'string':
+            # 允许所有值，强制转换为字符串类型进行处理
+            try:
+                column_data.map(str)
+            except Exception as e:
+                raise ValueError(f"Column '{field_name}' contains values that cannot be converted to string: {e}")
+        elif field_type == 'bool':
+            if not column_data.map(is_valid_bool).all():
+                raise ValueError(f"Column '{field_name}' contains invalid boolean values.")
+        elif field_type == 'time':
+            if not column_data.map(is_valid_time).all():
+                raise ValueError(f"Column '{field_name}' contains invalid time values.")
+        else:
+            raise ValueError(f"Unsupported field type '{field_type}' in column '{field_name}'.")
 
-                    meet_constraint = meet_constraint and meet_sub_constraint
-                    if not meet_constraint:
-                        raise ValueError(f"Constraint unmet in column '{field_name} -> field_ref: {field_ref} | table_name: {table_name}")
+        # 约束验证
+        if constraints:
+            validate_constraints(column_data, constraints, all_excel_data, field_name)
+
+        continue
+
+
+def validate_constraints(column_data, constraints, all_excel_data, field_name):
+    """
+    验证字段的约束条件，包括数值范围和外键关系。
+    """
+    for field_ref, table_name in constraints.items():
+        if field_ref == "Range":
+            # 范围验证
+            range_components = table_name.split(',')
+            range_min = float(range_components[0].strip())
+            range_max = float(range_components[1].strip()) if range_components[1].strip() != "!" else float("inf")
+            if not ((column_data >= range_min) & (column_data < range_max)).all():
+                raise ValueError(f"Column '{field_name}' has values out of range [{range_min}, {range_max}).")
+        else:
+            # 外键验证
+            if table_name not in all_excel_data:
+                raise ValueError(f"Table '{table_name}' referenced in column '{field_name}' not found.")
             
+            foreign_table = all_excel_data[table_name]
+            
+            # 在 foreign_table.columns 中找到与 field_ref 匹配的字段
+            matching_column = None
+            for col in foreign_table.columns:
+                components = util.get_field_components(col)
+                if components["field_name"] == field_ref:
+                    matching_column = col
+                    break
+            
+            if matching_column is None:
+                raise ValueError(f"Field '{field_ref}' not found in table '{table_name}'.")
+            
+            # 提取外键列的所有唯一值进行验证
+            foreign_values = foreign_table[matching_column].dropna().unique()
+            if not column_data.isin(foreign_values).all():
+                raise ValueError(f"Column '{field_name}' contains values not found in '{field_ref}' of table '{table_name}'.")
+
+
 
 def is_valid_bool(value):
     """

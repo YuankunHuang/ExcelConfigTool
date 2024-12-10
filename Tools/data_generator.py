@@ -91,7 +91,7 @@ def parse_value(value, field_type: str):
             return 0
         elif field_type == 'time':
             timestamp = Timestamp()
-            timestamp.FromDatetime(datetime.min.replace(tzinfo=timezone.utc))  # 设置为OTC最小时间戳
+            timestamp.FromDatetime(datetime.min.replace(tzinfo=timezone.utc))  # 设置为 UTC 最小时间戳
             return timestamp
         elif field_type == 'string':
             return ""
@@ -120,22 +120,11 @@ def parse_value(value, field_type: str):
     elif field_type == 'time':
         if isinstance(value, str):
             try:
-                # 强制拆分时间字段
                 components = value.split("-")
                 if len(components) != 6:
                     raise ValueError(f"Invalid time format: '{value}'. Expected format: 'yyyy-MM-dd-HH-mm-ss'")
-                
-                # 提取时间组件
                 year, month, day, hour, minute, second = map(int, components)
-                
-                # 构造 UTC 时间对象
                 dt = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
-                
-                tdt = datetime(2023, 1, 3, 5, 5, 11, tzinfo=timezone.utc)
-                timestamp = Timestamp()
-                timestamp.FromDatetime(tdt)
-
-                # 转换为 Protobuf Timestamp
                 timestamp = Timestamp()
                 timestamp.FromDatetime(dt)
                 return timestamp
@@ -145,6 +134,7 @@ def parse_value(value, field_type: str):
             raise ValueError(f"Unsupported time input: {value}, type: {type(value)}")
 
     elif field_type == 'string':
+        # 对所有值强制转换为字符串
         return str(value)
 
     return value
