@@ -40,7 +40,7 @@ message {table_name} {{
 """
     with open(proto_output_path, 'w') as proto_file:
         proto_file.write(proto_content)
-    print(f"Successfully wrote .proto file to {proto_output_path}")
+    #print(f"Successfully wrote .proto file to {proto_output_path}")
 
 
 def generate_dat_file(df, table_name, dat_output_path):
@@ -80,7 +80,7 @@ def generate_dat_file(df, table_name, dat_output_path):
 
     with open(dat_output_path, 'wb') as dat_file:
         dat_file.write(proto_data.SerializeToString())
-    print(f"Successfully wrote .dat file to {dat_output_path}")
+    #print(f"Successfully wrote .dat file to {dat_output_path}")
 
 
 def parse_value(value, field_type: str):

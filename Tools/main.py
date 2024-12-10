@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import shutil
 import sys
@@ -19,45 +20,63 @@ def get_all_excel_data(input_dir):
     return data_dict
 
 
+def process_single_excel(file_path, proto_dir, dat_dir, python_out_dir, csharp_out_dir, all_excel_data):
+    """
+    处理单个 Excel 文件：读取、验证、生成 .proto/.dat/.py/.cs 文件。
+    """
+    try:
+        table_name = os.path.splitext(os.path.basename(file_path))[0]
+        print(f"[Start processing table: {table_name}]")
+
+        # 读取 Excel 文件
+        df = excel_reader.read_excel(file_path)
+
+        # 验证数据
+        validator.validate_excel(df, all_excel_data)
+
+        # 生成 .proto 文件
+        proto_file = os.path.join(proto_dir, f"{table_name}.proto")
+        data_generator.generate_proto_file(df, proto_file, table_name)
+
+        # 生成 Python 和 C# 文件
+        code_generator.generate_python_code(proto_file, python_out_dir)
+        code_generator.generate_csharp_code(proto_file, csharp_out_dir)
+
+        # 生成 .dat 文件
+        dat_file = os.path.join(dat_dir, f"{table_name}.dat")
+        data_generator.generate_dat_file(df, table_name, dat_file)
+
+        print(f"[Finished processing table: {table_name}]")
+        return True
+
+    except Exception as e:
+        print(f"Error processing file {file_path}: {e}")
+        return False
+
+
 def process_excel_directory(input_dir, proto_dir, dat_dir, python_out_dir, csharp_out_dir):
     """
-    遍历 Excel 目录，对每个 Excel 文件生成 .proto 和相关文件，避免重复运算
+    并行化处理整个 Excel 目录。
     """
+    # 获取所有 Excel 文件
+    excel_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith('.xlsx')]
 
+    # 收集所有表数据，用于跨表验证
     all_excel_data = get_all_excel_data(input_dir)
 
-    for file_name in os.listdir(input_dir):
-        if file_name.endswith('.xlsx'):
-            file_path = os.path.join(input_dir, file_name)
-            print("\n" + "=" * 40)
-            print(f"Processing: {file_name}")
+    # 并行处理每个文件
+    with ThreadPoolExecutor() as executor:
+        futures = {
+            executor.submit(process_single_excel, file, proto_dir, dat_dir, python_out_dir, csharp_out_dir, all_excel_data): file
+            for file in excel_files
+        }
 
-            # 读取 Excel 文件
-            df = excel_reader.read_excel(file_path)
-            validator.validate_excel(df, all_excel_data)
-
-            # 生成对应的文件名
-            table_name = os.path.splitext(file_name)[0]
-            proto_file = os.path.join(proto_dir, f"{table_name}.proto")
-            dat_file = os.path.join(dat_dir, f"{table_name}.dat")
-
-            # 生成 .proto 文件
-            print()
-            data_generator.generate_proto_file(df, proto_file, table_name)  # 单独生成 .proto 文件
-            #print(f".proto file generated for {file_name}")
-
-            # 使用 protoc 生成 Python 和 C# 文件
-            print()
-            code_generator.generate_python_code(proto_file, python_out_dir)
-            code_generator.generate_csharp_code(proto_file, csharp_out_dir)
-            print(f"Python and C# code generated for {file_name}")
-
-            # 生成 .dat 文件
-            print()
-            data_generator.generate_dat_file(df, table_name, dat_file)
-            #print(f".dat file generated for {file_name}")
-
-            print("=" * 40)
+        for future in as_completed(futures):
+            file = futures[future]
+            try:
+                result = future.result()
+            except Exception as e:
+                print(f"Exception occurred while processing {file}: {e}")
 
 
 if __name__ == "__main__":    
